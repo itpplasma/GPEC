@@ -199,34 +199,26 @@ module inputs
         real(r8), dimension(:,:), allocatable :: table
         character(32), dimension(:), allocatable :: titles
 
-        integer, parameter :: nkin = 100
-        integer :: i,out_unit, tshape(2)
-        real(r8) :: psi
-        real(r8), dimension(0:nkin) :: zeff,zpitch,welec,wdian,wdiat,wpefac
-        type(spline_type) :: tmp
+        integer :: i,out_unit,nkin, tshape(2)
+        real(r8), dimension(:), allocatable :: zeff,zpitch,welec,wdian,wdiat,wpefac
 
         call readtable(file,table,titles,verbose,write_log)
         tshape = shape(table)
         if(write_log) print *,"Table shaped ",tshape
 
-        ! temp spline on experimental grid
-        call spline_alloc(tmp,tshape(1)-1,5)
-        tmp%xs(0:) = table(1:,1)
-        do i=1,5
-            tmp%fs(0:,i) = table(1:,i+1)
-        enddo
-        call spline_fit(tmp,"extrap")
-        if(write_log) print *,"Formed temporary spline"
-
-        ! extrapolate to regular spline (helps smooth core??)
+        ! kinetic spline on the experimental grid. Collisionalities are formed
+        ! from n and T at the data points below, so they are never evaluated at
+        ! extrapolated nodes (a T^-1.5 profile rings badly when the data end
+        ! before psi_n = 1 and the edge node is extrapolated).
+        nkin = tshape(1)-1
+        allocate(zeff(0:nkin),zpitch(0:nkin),welec(0:nkin),wdian(0:nkin),&
+            wdiat(0:nkin),wpefac(0:nkin))
         call spline_alloc(kin,nkin,9)
         kin%title(0:) = (/"psi_n ","n_i   ","n_e   ","t_i   ","t_e   ","omegae",&
                     "loglam", "nu_i  ","nu_e  ", "zeff  "/)
-        do i=0,kin%mx
-              psi = (1.0*i)/kin%mx
-              call spline_eval(tmp,psi,0)
-              kin%xs(i) = psi
-              kin%fs(i,1:5) = tmp%f(1:5)
+        kin%xs(0:) = table(1:,1)
+        do i=1,5
+            kin%fs(0:,i) = table(1:,i+1)
         enddo
 
         ! convert temperatures to si units
