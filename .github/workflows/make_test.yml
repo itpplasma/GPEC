@@ -2,6 +2,8 @@ name: Build GPEC
 
 on:
   workflow_dispatch:
+  merge_group:
+    types: [checks_requested]
   pull_request:
     branches: [develop]
 
@@ -12,6 +14,7 @@ jobs:
   # branch so nobody needs python/uv locally. (Same-repo PRs only -- a fork PR
   # can't be pushed to, in which case just merge and fix on the next PR.)
   deps:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -46,6 +49,7 @@ jobs:
           fi
 
   build-netcdf-gfortran:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     env:
       PREFIX: ${{ github.workspace }}/deps
@@ -103,6 +107,7 @@ jobs:
           ls -lh $PREFIX/include
 
   build-netcdf-ifort:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     env:
       PREFIX: ${{ github.workspace }}/deps
@@ -174,6 +179,7 @@ jobs:
           ls -lh $PREFIX/include
 
   make_gpec_gfortran:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     needs: build-netcdf-gfortran
     env:
@@ -245,6 +251,7 @@ jobs:
           ../../../bin/dcon && ../../../bin/gpec && python3 check_recon.py
 
   make_gpec_ifort:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     needs: build-netcdf-ifort
     env:
