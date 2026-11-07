@@ -201,7 +201,6 @@ module inputs
         logical :: write_log
         character(*), intent(in), optional :: format
         ! declare local variables
-        logical :: warning_printed = .false.
         real(r8), dimension(:,:), allocatable :: table
         character(32), dimension(:), allocatable :: titles
 
@@ -209,7 +208,7 @@ module inputs
         integer :: i,out_unit, tshape(2), nq
         logical :: supplied
         real(r8) :: psi
-        real(r8), dimension(0:nkin) :: zeff,zpitch,welec,wdian,wdiat,wpefac
+        real(r8), dimension(0:nkin) :: zeff,zpitch,welec,wdian,wdiat
         real(r8), dimension(0:nkin,2) :: tkev
         real(r8), dimension(0:nkin,3) :: nu_supplied
         type(spline_type) :: tmp,tmp_nu
@@ -288,22 +287,11 @@ module inputs
 
         ! manipulation of rotation variables
         welec(:) = wefac*kin%fs(:,5) ! direct manipulation of omegae
-        ! note dividing by zero makes a nan that then ruins the whole spline
-        warning_printed = .false.
-        do i=0,nkin
-            if(welec(i) == 0) then
-                welec(i) = 1e-9
-                if(.not. warning_printed)then
-                    print *, "  ! WARNING ! Modifying omega_ExB = 0 to 1e-9 to avoid nans"
-                    warning_printed = .true.
-                end if
-            end if
-        end do
         if(wefac/=1.0 .and. verbose) print('(a55,es10.2e3)'),'  -> applying direct manipulation of omegaE by factor ',wefac
         wdian =-twopi*kin%fs(:,3)*kin%fs1(:,1)/(e*zi*chi1*kin%fs(:,1))
         wdiat =-twopi*kin%fs1(:,3)/(e*zi*chi1)
-        wpefac= (wpfac*(welec+wdian+wdiat) - (wdian+wdiat))/welec
-        welec = wpefac*welec   ! indirect manipulation of rotation
+        ! wpfac scales welec+wdian+wdiat without dividing by welec, so 0 stays 0
+        welec = welec + (wpfac-1)*(welec+wdian+wdiat)
         kin%fs(:,5)=welec
 
         if(wpfac/=1.0 .and. verbose) then
